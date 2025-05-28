@@ -2,22 +2,22 @@
 
 lcp:
 	@echo "Construyendo y desplegando LCP..."
-	docker build -t lcp-image .
-	docker run -d --name lcp --network host lcp-image
+	sudo docker build -t lcp-image .
+	sudo docker run -d --name lcp --network host lcp-image
 
 rabbitmq:
 	@echo "Desplegando RabbitMQ..."
-	docker run -d --name rabbitmq --network host rabbitmq:3-management
+	sudo docker run -d --name rabbitmq --network host rabbitmq:3-management
 
 stop:
-	docker stop lcp || true
-	docker rm lcp || true
+	sudo docker stop lcp || true
+	sudo docker rm lcp || true
 
 stoprabbitmq:
-	docker stop rabbitmq || true
-	docker rm rabbitmq || true
+	sudo docker stop rabbitmq || true
+	sudo docker rm rabbitmq || true
 
 clean: stop
-	docker rmi lcp-image || true
+	sudo docker rmi lcp-image || true
 
 cleanall: clean stoprabbitmq
