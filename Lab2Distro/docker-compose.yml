@@ -1,0 +1,82 @@
+version: '3.8'
+
+services:
+  entrenador:
+    build:
+      context: ./entrenador
+      dockerfile: Dockerfile
+    container_name: entrenador
+    stdin_open: true
+    tty: true
+    depends_on:
+      - lcp
+    networks:
+      - lcp-network
+
+  lcp:
+    build:
+      context: ./lcp
+      dockerfile: Dockerfile
+    container_name: lcp
+    ports:
+      - "50051:50051"
+    depends_on:
+      - gimnasios
+    networks:
+      - lcp-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:50051"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  gimnasios:
+    build:
+      context: ./gimnasios
+      dockerfile: Dockerfile
+    container_name: gimnasios
+    ports:
+      - "50052:50052"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy  # Wait for RabbitMQ to be healthy
+    networks:
+      - lcp-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:50052"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"   # AMQP protocol port
+      - "15672:15672" # Management UI port
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    networks:
+      - lcp-network
+    healthcheck:
+      test: ["CMD", "rabbitmqctl", "status"]
+      interval: 5s
+      timeout: 10s
+      retries: 5
+      start_period: 10s  # Give RabbitMQ time to start
+
+  cdp:
+    build:
+      context: ./cdp
+      dockerfile: Dockerfile
+    container_name: cdp
+    depends_on:
+      - rabbitmq
+      - gimnasios
+    networks:
+      - lcp-network
+
+networks:
+  lcp-network:
+    driver: bridge
