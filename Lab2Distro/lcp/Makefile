@@ -3,7 +3,7 @@
 lcp:
 	@echo "Construyendo y desplegando LCP..."
 	sudo docker build -t lcp-image .
-	sudo docker run -d --name lcp --network host lcp-image
+	sudo docker run --name lcp --network host lcp-image
 
 rabbitmq:
 	@echo "Desplegando RabbitMQ..."

@@ -3,7 +3,7 @@
 cdp:
 	@echo "Construyendo y desplegando CDP..."
 	sudo docker build -t cdp-image .
-	sudo docker run -d --name cdp --network host cdp-image
+	sudo docker run --name cdp --network host cdp-image
 
 stop:
 	sudo docker stop cdp || true

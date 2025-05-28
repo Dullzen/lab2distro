@@ -3,7 +3,7 @@
 gimnasios:
 	@echo "Construyendo y desplegando Gimnasios..."
 	sudo docker build -t gimnasios-image .
-	sudo docker run -d --name gimnasios --network host gimnasios-image
+	sudo docker run --name gimnasios --network host gimnasios-image
 
 stop:
 	sudo docker stop gimnasios || true
