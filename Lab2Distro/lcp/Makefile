@@ -1,13 +1,23 @@
-# Makefile para lcp
+.PHONY: lcp
 
-all: run
+lcp:
+	@echo "Construyendo y desplegando LCP..."
+	docker build -t lcp-image .
+	docker run -d --name lcp --network host lcp-image
 
-build:
-	docker build -t lcp .
+rabbitmq:
+	@echo "Desplegando RabbitMQ..."
+	docker run -d --name rabbitmq --network host rabbitmq:3-management
 
-run: build
-	docker rm -f lcp || true
-	docker run --rm -it -p 50051:50051 --name lcp lcp
+stop:
+	docker stop lcp || true
+	docker rm lcp || true
 
-clean:
-	docker rmi -f lcp
+stoprabbitmq:
+	docker stop rabbitmq || true
+	docker rm rabbitmq || true
+
+clean: stop
+	docker rmi lcp-image || true
+
+cleanall: clean stoprabbitmq

@@ -1,13 +1,13 @@
-# Makefile para entrenador
+.PHONY: entrenador
 
-all: run
+entrenador:
+	@echo "Construyendo y desplegando Entrenador..."
+	docker build -t entrenador-image .
+	docker run -it --name entrenador --network host entrenador-image
 
-build:
-	docker build -t  entrenador .
+stop:
+	docker stop entrenador || true
+	docker rm entrenador || true
 
-run: build
-	docker rm -f entrenador || true
-	docker run --rm -it -p 50053:50053 --name entrenador entrenador
-
-clean:
-	docker rmi -f entrenador
+clean: stop
+	docker rmi entrenador-image || true
