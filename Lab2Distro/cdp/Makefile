@@ -1,7 +1,8 @@
 .PHONY: cdp
 
 cdp:
-	@echo "Construyendo y desplegando CDP..."
+	-sudo docker stop cdp 2>/dev/null || true
+	-sudo docker rm cdp 2>/dev/null || true
 	sudo docker build -t cdp-image .
 	sudo docker run --name cdp --network host cdp-image
 

@@ -1,7 +1,8 @@
 .PHONY: lcp
 
 lcp:
-	@echo "Construyendo y desplegando LCP..."
+	-sudo docker stop lcp 2>/dev/null || true
+	-sudo docker rm lcp 2>/dev/null || true
 	sudo docker build -t lcp-image .
 	sudo docker run -d --name lcp --network host lcp-image
 

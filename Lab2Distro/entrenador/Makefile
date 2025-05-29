@@ -1,7 +1,8 @@
 .PHONY: entrenador
 
 entrenador:
-	@echo "Construyendo y desplegando Entrenador..."
+	-sudo docker stop entrenador 2>/dev/null || true
+	-sudo docker rm entrenador 2>/dev/null || true
 	sudo docker build -t entrenador-image .
 	sudo docker run -it --name entrenador --network host entrenador-image
 
