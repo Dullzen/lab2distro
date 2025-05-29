@@ -245,11 +245,34 @@ func procesarMensaje(mensaje []byte, region string) error {
 	return nil
 }
 
+// Función para conectar a RabbitMQ con reintentos
+func conectarRabbitMQ(maxRetries int, retryDelay time.Duration) (*amqp.Connection, *amqp.Channel, error) {
+	var lastErr error
+	for i := 0; i < maxRetries; i++ {
+		// Usar el nuevo usuario con permisos para conexiones remotas
+		conn, err := amqp.Dial("amqp://pokemon:pokemon123@10.35.168.63:5672/")
+		if err == nil {
+			ch, err := conn.Channel()
+			if err == nil {
+				return conn, ch, nil
+			}
+			conn.Close()
+			lastErr = err
+		} else {
+			lastErr = err
+		}
+
+		log.Printf("Intento %d: Error conectando a RabbitMQ: %v. Reintentando en %v...", i+1, err, retryDelay)
+		time.Sleep(retryDelay)
+	}
+	return nil, nil, fmt.Errorf("no se pudo conectar después de %d intentos: %v", maxRetries, lastErr)
+}
+
 func main() {
 	log.Println("Iniciando Combat Data Processor (CDP)...")
 
 	// Conectar a LCP mediante gRPC (mantener para verificación de entrenadores)
-	connLCP, err := conectarGRPC("10.35.168.63:50051", 5, time.Second*3) // Cambiado a la IP de la segunda VM
+	connLCP, err := conectarGRPC("10.35.168.63:50051", 5, time.Second*3)
 	if err != nil {
 		log.Printf("Error conectando con LCP: %v. Continuando sin verificar entrenadores.", err)
 	} else {
@@ -258,17 +281,12 @@ func main() {
 		defer connLCP.Close()
 	}
 
-	// Conectar a RabbitMQ
-	conn, err := amqp.Dial("amqp://guest:guest@10.35.168.63:5672/") // Cambiado a la IP de la segunda VM
+	// Conectar a RabbitMQ con reintentos
+	rabbitConn, ch, err := conectarRabbitMQ(5, time.Second*3)
 	if err != nil {
 		log.Fatalf("Error conectando a RabbitMQ: %v", err)
 	}
-	defer conn.Close()
-
-	ch, err := conn.Channel()
-	if err != nil {
-		log.Fatalf("Error abriendo canal: %v", err)
-	}
+	defer rabbitConn.Close()
 	defer ch.Close()
 
 	// Guardar canal global para envío de resultados
