@@ -37,19 +37,23 @@ var lcpClient pb.LCPServiceClient
 // Canal RabbitMQ para envío de resultados
 var rabbitChannel *amqp.Channel
 
-// Función para conectar a gRPC con reintentos
+// Agregar esta variable global para almacenar IDs de combates ya procesados
+var combatesProcesados = make(map[string]bool)
+var mutexCombates = &sync.Mutex{}
+
+// Función para conectar a gRPC
 func conectarGRPC(address string, maxRetries int, retryDelay time.Duration) (*grpc.ClientConn, error) {
 	var conn *grpc.ClientConn
 	var err error
-
+	//intentos
 	for i := 0; i < maxRetries; i++ {
 		conn, err = grpc.Dial(address, grpc.WithInsecure(), grpc.WithBlock(), grpc.WithTimeout(3*time.Second))
 		if err == nil {
-			return conn, nil // Conexión exitosa
+			return conn, nil
 		}
 
 		log.Printf("Intento %d: No se pudo conectar a %s: %v", i+1, address, err)
-		time.Sleep(retryDelay) // Esperar antes de reintentar
+		time.Sleep(retryDelay)
 	}
 
 	return nil, fmt.Errorf("no se pudo conectar a %s después de %d intentos", address, maxRetries)
@@ -57,19 +61,19 @@ func conectarGRPC(address string, maxRetries int, retryDelay time.Duration) (*gr
 
 // Función para descifrar mensajes con AES-256
 func descifrarAES(textoCifradoBase64 string) ([]byte, error) {
-	// Decodificar base64
+	// Decodificar
 	textoCifrado, err := base64.StdEncoding.DecodeString(textoCifradoBase64)
 	if err != nil {
 		return nil, fmt.Errorf("error decodificando base64: %v", err)
 	}
 
-	// Crear cifrador AES
+	// Cifrador AES
 	bloque, err := aes.NewCipher(claveAES)
 	if err != nil {
 		return nil, err
 	}
 
-	// Extraer nonce (primeros 12 bytes)
+	// Extraer
 	if len(textoCifrado) < 12 {
 		return nil, fmt.Errorf("texto cifrado demasiado corto")
 	}
@@ -113,10 +117,6 @@ func verificarEntrenadores(entrenador1ID, entrenador2ID string) (bool, error) {
 
 	return resultado.TodosValidos, nil
 }
-
-// Agregar esta variable global para almacenar IDs de combates ya procesados
-var combatesProcesados = make(map[string]bool)
-var mutexCombates = &sync.Mutex{}
 
 // Función para verificar si un mensaje tiene estructura correcta
 func validarEstructuraMensaje(resultado *ResultadoCombateMsg) error {
@@ -249,7 +249,7 @@ func procesarMensaje(mensaje []byte, region string) error {
 func conectarRabbitMQ(maxRetries int, retryDelay time.Duration) (*amqp.Connection, *amqp.Channel, error) {
 	var lastErr error
 	for i := 0; i < maxRetries; i++ {
-		// Usar el nuevo usuario con permisos para conexiones remotas
+		// Usuario y contraseña de RabbitMQ
 		conn, err := amqp.Dial("amqp://pokemon:pokemon123@10.35.168.63:5672/")
 		if err == nil {
 			ch, err := conn.Channel()
@@ -271,7 +271,7 @@ func conectarRabbitMQ(maxRetries int, retryDelay time.Duration) (*amqp.Connectio
 func main() {
 	log.Println("Iniciando Combat Data Processor (CDP)...")
 
-	// Conectar a LCP mediante gRPC (mantener para verificación de entrenadores)
+	// Conectar a LCP con gRPC
 	connLCP, err := conectarGRPC("10.35.168.63:50051", 5, time.Second*3)
 	if err != nil {
 		log.Printf("Error conectando con LCP: %v. Continuando sin verificar entrenadores.", err)
@@ -281,7 +281,7 @@ func main() {
 		defer connLCP.Close()
 	}
 
-	// Conectar a RabbitMQ con reintentos
+	// Conectar a RabbitMQ
 	rabbitConn, ch, err := conectarRabbitMQ(5, time.Second*3)
 	if err != nil {
 		log.Fatalf("Error conectando a RabbitMQ: %v", err)
@@ -289,10 +289,10 @@ func main() {
 	defer rabbitConn.Close()
 	defer ch.Close()
 
-	// Guardar canal global para envío de resultados
+	// Canal para envío de resultados
 	rabbitChannel = ch
 
-	// Declarar la cola para resultados (asegurar que exista)
+	// Cola para resultados (asegurar que exista)
 	_, err = ch.QueueDeclare(
 		"resultados_combates", // nombre
 		false,                 // durable

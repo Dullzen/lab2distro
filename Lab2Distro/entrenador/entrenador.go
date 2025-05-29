@@ -44,8 +44,7 @@ func cargarEntrenadoresDesdeJSON(nombreArchivo string) ([]*pb.Entrenador, error)
 }
 
 // Función para inscribir automáticamente los entrenadores del archivo JSON
-func inscribirEntrenadoresAutomaticamente(client pb.LCPServiceClient, entrenadores []*pb.Entrenador,
-	entYaInscritos *sync.Map) {
+func inscribirEntrenadoresAutomaticamente(client pb.LCPServiceClient, entrenadores []*pb.Entrenador, entYaInscritos *sync.Map) {
 
 	// Mapa para registrar los torneos en los que ya se intentó inscribir a todos los entrenadores
 	var torneosIntentados sync.Map
@@ -464,7 +463,6 @@ func main() {
 			if len(torneos.Torneos) == 0 {
 				fmt.Println("No hay torneos registrados en este momento.")
 			} else {
-				//imprimirTorneos(torneos)
 
 				// Buscar e imprimir información específica del torneo activo
 				var torneoActivo *pb.InfoTorneo

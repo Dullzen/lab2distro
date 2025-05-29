@@ -248,6 +248,229 @@ func generarNombreTorneo() (string, string) {
 	return nombreTorneo, torneoID
 }
 
+// Función para verificar si un mensaje de resultado de combate es válido y no duplicado
+func (s *server) verificarMensajeCDP(in *pb.ResultadoCombateDesdeRabbit) error {
+	// Verificar estructura básica del mensaje
+	if in.CombateId == "" {
+		return fmt.Errorf("mensaje inválido: ID de combate vacío")
+	}
+
+	if in.TorneoId == "" {
+		return fmt.Errorf("mensaje inválido: ID de torneo vacío")
+	}
+
+	if in.Entrenador1Id == "" || in.Entrenador2Id == "" {
+		return fmt.Errorf("mensaje inválido: IDs de entrenadores incompletos")
+	}
+
+	if in.GanadorId == "" {
+		return fmt.Errorf("mensaje inválido: no se especificó un ganador")
+	}
+
+	// Verificar que el ID del ganador corresponda a uno de los entrenadores
+	if in.GanadorId != in.Entrenador1Id && in.GanadorId != in.Entrenador2Id {
+		return fmt.Errorf("mensaje inválido: el ID del ganador (%s) no corresponde a ninguno de los entrenadores del combate (%s, %s)",
+			in.GanadorId, in.Entrenador1Id, in.Entrenador2Id)
+	}
+
+	// Verificar si es un mensaje duplicado
+	s.ultimaProcesamiento.Lock()
+	defer s.ultimaProcesamiento.Unlock()
+
+	if s.combatesProcesados == nil {
+		s.combatesProcesados = make(map[string]bool)
+	}
+
+	// Si el combate ya fue procesado, es un duplicado
+	if s.combatesProcesados[in.CombateId] {
+		return fmt.Errorf("mensaje duplicado: el resultado del combate %s ya fue procesado", in.CombateId)
+	}
+
+	// Verificar formato válido para la fecha
+	if in.FechaCombate != "" {
+		_, err := time.Parse("2006-01-02 15:04:05", in.FechaCombate)
+		if err != nil {
+			return fmt.Errorf("mensaje inválido: formato de fecha incorrecto: %v", err)
+		}
+	}
+
+	return nil
+}
+
+func (s *server) VerificarEntrenadores(ctx context.Context, in *pb.VerificacionEntrenadores) (*pb.ResultadoVerificacion, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	todosValidos := true
+
+	for _, id := range in.EntrenadorIds {
+		// Verificar si el entrenador existe y está activo
+		entrenador, existe := s.entrenadoresMap[id]
+		if !existe || entrenador.Estado != "activo" {
+			todosValidos = false
+			break
+		}
+	}
+
+	resultado := &pb.ResultadoVerificacion{
+		TodosValidos: todosValidos,
+	}
+
+	if todosValidos {
+		resultado.Mensaje = "Todos los entrenadores están registrados y activos"
+	} else {
+		resultado.Mensaje = "Uno o ambos entrenadores no están registrados o no están activos"
+	}
+
+	log.Printf("Verificación de entrenadores solicitada para %v IDs, resultado: %v", len(in.EntrenadorIds), resultado.TodosValidos)
+	return resultado, nil
+}
+
+// Function to connect to RabbitMQ with retries
+func conectarRabbitMQ(url string, maxRetries int, retryDelay time.Duration) (*amqp.Connection, error) {
+	var conn *amqp.Connection
+	var err error
+
+	for i := 0; i < maxRetries; i++ {
+		conn, err = amqp.Dial(url)
+		if err == nil {
+			return conn, nil // Connection successful
+		}
+
+		log.Printf("Attempt %d: Could not connect to RabbitMQ: %v", i+1, err)
+		time.Sleep(retryDelay) // Wait before retrying
+	}
+
+	return nil, fmt.Errorf("could not connect to RabbitMQ at %s after %d attempts", url, maxRetries)
+}
+
+// Function to process combat results from RabbitMQ
+func (s *server) procesarResultadosCombates(ch *amqp.Channel, queueName string) {
+	// Declare the queue to make sure it exists
+	q, err := ch.QueueDeclare(
+		queueName, // name
+		false,     // durable
+		false,     // delete when unused
+		false,     // exclusive
+		false,     // no-wait
+		nil,       // arguments
+	)
+	if err != nil {
+		log.Printf("Failed to declare queue %s: %v", queueName, err)
+		return
+	}
+
+	// Consume messages from the queue
+	msgs, err := ch.Consume(
+		q.Name, // queue
+		"",     // consumer
+		true,   // auto-ack
+		false,  // exclusive
+		false,  // no-local
+		false,  // no-wait
+		nil,    // args
+	)
+	if err != nil {
+		log.Printf("Failed to register a consumer for queue %s: %v", queueName, err)
+		return
+	}
+
+	log.Printf("Started consuming combat results from RabbitMQ queue: %s", queueName)
+
+	for d := range msgs {
+		go s.handleCombatResult(d.Body)
+	}
+}
+
+// Handle combat result from RabbitMQ
+func (s *server) handleCombatResult(messageBody []byte) {
+	// Parse the JSON message
+	var resultado ResultadoCombateMQ
+	if err := json.Unmarshal(messageBody, &resultado); err != nil {
+		log.Printf("Error decodificando JSON del resultado del combate: %v", err)
+		return
+	}
+
+	// Check for duplicates
+	s.ultimaProcesamiento.Lock()
+	if s.combatesProcesados == nil {
+		s.combatesProcesados = make(map[string]bool)
+	}
+
+	// If the combat has already been processed, it's a duplicate
+	if s.combatesProcesados[resultado.CombateID] {
+		log.Printf("Mensaje duplicado: El resultado del combate %s ya fue procesado", resultado.CombateID)
+		s.ultimaProcesamiento.Unlock()
+		return
+	}
+
+	// Mark this combat as processed to avoid future duplicates
+	s.combatesProcesados[resultado.CombateID] = true
+	s.ultimaProcesamiento.Unlock()
+
+	// Check if there's a channel waiting for this result
+	s.mu.Lock()
+	resultadoChan, esperando := s.combatesPendientes[resultado.CombateID]
+
+	if esperando {
+		// Si hay un canal esperando, enviar el resultado
+		select {
+		case resultadoChan <- resultado.GanadorID:
+			log.Printf("Resultado del combate %s enviado al canal ", resultado.CombateID)
+		default:
+			log.Printf("No se pudo enviar resultado para combate %s (canal posiblemente cerrado)", resultado.CombateID)
+		}
+	} else {
+		// Si no hay canal esperando, guardar como resultado adelantado
+		if s.resultadosAdelantados == nil {
+			s.resultadosAdelantados = make(map[string]string)
+		}
+		s.resultadosAdelantados[resultado.CombateID] = resultado.GanadorID
+		log.Printf("Almacenando resultado del combate %s como resultado adelantado", resultado.CombateID)
+	}
+	s.mu.Unlock()
+
+	// Look for the trainers involved
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	ent1, existe1 := s.entrenadoresMap[resultado.Entrenador1ID]
+	ent2, existe2 := s.entrenadoresMap[resultado.Entrenador2ID]
+
+	if !existe1 || !existe2 {
+		log.Printf("Uno o ambos entrenadores no encontrados en la base de datos para el combate %s", resultado.CombateID)
+		return
+	}
+
+	// Determine winner and loser based on the returned ID
+	var ganador, perdedor *pb.Entrenador
+	if resultado.GanadorID == ent1.Id {
+		ganador = ent1
+		perdedor = ent2
+	} else {
+		ganador = ent2
+		perdedor = ent1
+	}
+
+	log.Printf("Resultado de %s vs %s en %s",
+		ent1.Nombre, ent2.Nombre, resultado.GimnasioNombre)
+	// Update loser's ranking (loses 50 points)
+	if entPerdedor, exists := s.entrenadoresMap[perdedor.Id]; exists {
+		entPerdedor.Ranking = entPerdedor.Ranking - 50
+		if entPerdedor.Ranking < 0 {
+			entPerdedor.Ranking = 0
+		}
+		log.Printf("CDP: %s pierde 50 puntos. Nuevo ranking: %d", perdedor.Nombre, entPerdedor.Ranking)
+	}
+
+	// Winner gains some ranking points
+	if entGanador, exists := s.entrenadoresMap[ganador.Id]; exists {
+		entGanador.Ranking = entGanador.Ranking + 25
+		log.Printf("CDP: %s gana 25 puntos. Nuevo ranking: %d", ganador.Nombre, entGanador.Ranking)
+	}
+
+}
+
 func main() {
 	entrenadoresMap := make(map[string]*pb.Entrenador)
 
@@ -260,7 +483,7 @@ func main() {
 		resultadosAdelantados: make(map[string]string),
 	}
 
-	// Iniciar el servidor gRPC PRIMERO
+	// Iniciar el servidor gRPC
 	lis, err := net.Listen("tcp", ":50051")
 	if err != nil {
 		log.Fatalf("Fallo al escuchar: %v", err)
@@ -281,7 +504,7 @@ func main() {
 	log.Println("Esperando a que el servidor gRPC inicie completamente...")
 	time.Sleep(2 * time.Second)
 
-	// DESPUÉS conectar a servicios externos
+	// conectar a servicios externos
 
 	// Conectar a RabbitMQ para recibir resultados de combates
 	rabbitConn, err := conectarRabbitMQ("amqp://guest:guest@localhost:5672/", 5, time.Second*3)
@@ -304,7 +527,7 @@ func main() {
 		defer rabbitConn.Close()
 	}
 
-	// Establecer conexión con gimnasios DESPUÉS de que nuestro servidor esté funcionando
+	// Establecer conexión con gimnasios de que nuestro servidor esté funcionando
 	gimnasiosConn, err := conectarGRPC("10.35.168.64:50052", 10, time.Second)
 	var gimnasiosClient pb.LCPServiceClient
 
@@ -544,227 +767,4 @@ func main() {
 
 	// Bloquear el programa para que no termine
 	select {}
-}
-
-// Función para verificar si un mensaje de resultado de combate es válido y no duplicado
-func (s *server) verificarMensajeCDP(in *pb.ResultadoCombateDesdeRabbit) error {
-	// Verificar estructura básica del mensaje
-	if in.CombateId == "" {
-		return fmt.Errorf("mensaje inválido: ID de combate vacío")
-	}
-
-	if in.TorneoId == "" {
-		return fmt.Errorf("mensaje inválido: ID de torneo vacío")
-	}
-
-	if in.Entrenador1Id == "" || in.Entrenador2Id == "" {
-		return fmt.Errorf("mensaje inválido: IDs de entrenadores incompletos")
-	}
-
-	if in.GanadorId == "" {
-		return fmt.Errorf("mensaje inválido: no se especificó un ganador")
-	}
-
-	// Verificar que el ID del ganador corresponda a uno de los entrenadores
-	if in.GanadorId != in.Entrenador1Id && in.GanadorId != in.Entrenador2Id {
-		return fmt.Errorf("mensaje inválido: el ID del ganador (%s) no corresponde a ninguno de los entrenadores del combate (%s, %s)",
-			in.GanadorId, in.Entrenador1Id, in.Entrenador2Id)
-	}
-
-	// Verificar si es un mensaje duplicado
-	s.ultimaProcesamiento.Lock()
-	defer s.ultimaProcesamiento.Unlock()
-
-	if s.combatesProcesados == nil {
-		s.combatesProcesados = make(map[string]bool)
-	}
-
-	// Si el combate ya fue procesado, es un duplicado
-	if s.combatesProcesados[in.CombateId] {
-		return fmt.Errorf("mensaje duplicado: el resultado del combate %s ya fue procesado", in.CombateId)
-	}
-
-	// Verificar formato válido para la fecha
-	if in.FechaCombate != "" {
-		_, err := time.Parse("2006-01-02 15:04:05", in.FechaCombate)
-		if err != nil {
-			return fmt.Errorf("mensaje inválido: formato de fecha incorrecto: %v", err)
-		}
-	}
-
-	return nil
-}
-
-func (s *server) VerificarEntrenadores(ctx context.Context, in *pb.VerificacionEntrenadores) (*pb.ResultadoVerificacion, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	todosValidos := true
-
-	for _, id := range in.EntrenadorIds {
-		// Verificar si el entrenador existe y está activo
-		entrenador, existe := s.entrenadoresMap[id]
-		if !existe || entrenador.Estado != "activo" {
-			todosValidos = false
-			break
-		}
-	}
-
-	resultado := &pb.ResultadoVerificacion{
-		TodosValidos: todosValidos,
-	}
-
-	if todosValidos {
-		resultado.Mensaje = "Todos los entrenadores están registrados y activos"
-	} else {
-		resultado.Mensaje = "Uno o ambos entrenadores no están registrados o no están activos"
-	}
-
-	log.Printf("Verificación de entrenadores solicitada para %v IDs, resultado: %v", len(in.EntrenadorIds), resultado.TodosValidos)
-	return resultado, nil
-}
-
-// Function to connect to RabbitMQ with retries
-func conectarRabbitMQ(url string, maxRetries int, retryDelay time.Duration) (*amqp.Connection, error) {
-	var conn *amqp.Connection
-	var err error
-
-	for i := 0; i < maxRetries; i++ {
-		conn, err = amqp.Dial(url)
-		if err == nil {
-			return conn, nil // Connection successful
-		}
-
-		log.Printf("Attempt %d: Could not connect to RabbitMQ: %v", i+1, err)
-		time.Sleep(retryDelay) // Wait before retrying
-	}
-
-	return nil, fmt.Errorf("could not connect to RabbitMQ at %s after %d attempts", url, maxRetries)
-}
-
-// Function to process combat results from RabbitMQ
-func (s *server) procesarResultadosCombates(ch *amqp.Channel, queueName string) {
-	// Declare the queue to make sure it exists
-	q, err := ch.QueueDeclare(
-		queueName, // name
-		false,     // durable
-		false,     // delete when unused
-		false,     // exclusive
-		false,     // no-wait
-		nil,       // arguments
-	)
-	if err != nil {
-		log.Printf("Failed to declare queue %s: %v", queueName, err)
-		return
-	}
-
-	// Consume messages from the queue
-	msgs, err := ch.Consume(
-		q.Name, // queue
-		"",     // consumer
-		true,   // auto-ack
-		false,  // exclusive
-		false,  // no-local
-		false,  // no-wait
-		nil,    // args
-	)
-	if err != nil {
-		log.Printf("Failed to register a consumer for queue %s: %v", queueName, err)
-		return
-	}
-
-	log.Printf("Started consuming combat results from RabbitMQ queue: %s", queueName)
-
-	for d := range msgs {
-		go s.handleCombatResult(d.Body)
-	}
-}
-
-// Handle combat result from RabbitMQ
-func (s *server) handleCombatResult(messageBody []byte) {
-	// Parse the JSON message
-	var resultado ResultadoCombateMQ
-	if err := json.Unmarshal(messageBody, &resultado); err != nil {
-		log.Printf("Error decodificando JSON del resultado del combate: %v", err)
-		return
-	}
-
-	// Check for duplicates
-	s.ultimaProcesamiento.Lock()
-	if s.combatesProcesados == nil {
-		s.combatesProcesados = make(map[string]bool)
-	}
-
-	// If the combat has already been processed, it's a duplicate
-	if s.combatesProcesados[resultado.CombateID] {
-		log.Printf("Mensaje duplicado: El resultado del combate %s ya fue procesado", resultado.CombateID)
-		s.ultimaProcesamiento.Unlock()
-		return
-	}
-
-	// Mark this combat as processed to avoid future duplicates
-	s.combatesProcesados[resultado.CombateID] = true
-	s.ultimaProcesamiento.Unlock()
-
-	// Check if there's a channel waiting for this result
-	s.mu.Lock()
-	resultadoChan, esperando := s.combatesPendientes[resultado.CombateID]
-
-	if esperando {
-		// Si hay un canal esperando, enviar el resultado
-		select {
-		case resultadoChan <- resultado.GanadorID:
-			log.Printf("Resultado del combate %s enviado al canal ", resultado.CombateID)
-		default:
-			log.Printf("No se pudo enviar resultado para combate %s (canal posiblemente cerrado)", resultado.CombateID)
-		}
-	} else {
-		// Si no hay canal esperando, guardar como resultado adelantado
-		if s.resultadosAdelantados == nil {
-			s.resultadosAdelantados = make(map[string]string)
-		}
-		s.resultadosAdelantados[resultado.CombateID] = resultado.GanadorID
-		log.Printf("Almacenando resultado del combate %s como resultado adelantado", resultado.CombateID)
-	}
-	s.mu.Unlock()
-
-	// Look for the trainers involved
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	ent1, existe1 := s.entrenadoresMap[resultado.Entrenador1ID]
-	ent2, existe2 := s.entrenadoresMap[resultado.Entrenador2ID]
-
-	if !existe1 || !existe2 {
-		log.Printf("Uno o ambos entrenadores no encontrados en la base de datos para el combate %s", resultado.CombateID)
-		return
-	}
-
-	// Determine winner and loser based on the returned ID
-	var ganador, perdedor *pb.Entrenador
-	if resultado.GanadorID == ent1.Id {
-		ganador = ent1
-		perdedor = ent2
-	} else {
-		ganador = ent2
-		perdedor = ent1
-	}
-
-	log.Printf("Resultado de %s vs %s en %s",
-		ent1.Nombre, ent2.Nombre, resultado.GimnasioNombre)
-	// Update loser's ranking (loses 50 points)
-	if entPerdedor, exists := s.entrenadoresMap[perdedor.Id]; exists {
-		entPerdedor.Ranking = entPerdedor.Ranking - 50
-		if entPerdedor.Ranking < 0 {
-			entPerdedor.Ranking = 0
-		}
-		log.Printf("CDP: %s pierde 50 puntos. Nuevo ranking: %d", perdedor.Nombre, entPerdedor.Ranking)
-	}
-
-	// Winner gains some ranking points
-	if entGanador, exists := s.entrenadoresMap[ganador.Id]; exists {
-		entGanador.Ranking = entGanador.Ranking + 25
-		log.Printf("CDP: %s gana 25 puntos. Nuevo ranking: %d", ganador.Nombre, entGanador.Ranking)
-	}
-
 }

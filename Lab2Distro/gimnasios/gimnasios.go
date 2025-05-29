@@ -52,7 +52,6 @@ type ResultadoCombateMsg struct {
 
 // SimularCombate simula un combate entre dos entrenadores y devuelve el ID del ganador
 func SimularCombate(ent1, ent2 *pb.Entrenador) string {
-	// Asegurar que los rankings tengan valores razonables
 	ranking1 := ent1.Ranking
 	if ranking1 <= 0 {
 		ranking1 = 100 // Valor por defecto
@@ -268,18 +267,18 @@ func (s *server) AsignarCombate(ctx context.Context, in *pb.SolicitudCombate) (*
 		combateID, torneoID, in.Entrenador1Id, in.Entrenador2Id,
 		in.GimnasioNombre, in.GimnasioRegion)
 
-	// Crear objetos Entrenador temporales basados en las IDs y USAR LOS RANKINGS REALES
+	// Crear objetos Entrenador temporales basados en las IDs y USAR LOS RANKINGS
 	entrenador1 := &pb.Entrenador{
 		Id:      in.Entrenador1Id,
-		Ranking: in.Entrenador1Ranking, // Usar ranking real recibido
+		Ranking: in.Entrenador1Ranking, // Usar ranking
 	}
 
 	entrenador2 := &pb.Entrenador{
 		Id:      in.Entrenador2Id,
-		Ranking: in.Entrenador2Ranking, // Usar ranking real recibido
+		Ranking: in.Entrenador2Ranking, // Usar ranking r
 	}
 
-	// 2. Log de simulación de combate con información de rankings
+	// Log de simulación de combate con información de rankings
 	log.Printf("[Procesando] Combate %s: Enfrentamiento %s (%s) - Rankings: %d vs %d",
 		combateID, in.GimnasioNombre, in.GimnasioRegion,
 		entrenador1.Ranking, entrenador2.Ranking)
@@ -293,7 +292,7 @@ func (s *server) AsignarCombate(ctx context.Context, in *pb.SolicitudCombate) (*
 		Region: in.GimnasioRegion,
 	}
 
-	// 3. Log del resultado del combate
+	// Log del resultado del combate
 	log.Printf("[Resultado] Combate %s: Ganador: %s (Enfrentamiento: %s vs %s)",
 		combateID, idGanador, in.Entrenador1Id, in.Entrenador2Id)
 
@@ -309,14 +308,14 @@ func (s *server) AsignarCombate(ctx context.Context, in *pb.SolicitudCombate) (*
 		Region:         gimnasio.Region,
 	}
 
-	// 4. Log de publicación - inicio
+	// Log de publicación - inicio
 	log.Printf("[Publicando] Combate %s: Enviando resultado a cola RabbitMQ '%s'",
 		combateID, "combates_"+gimnasio.Region)
 
 	// Intentar publicar el resultado
 	err := s.publicarResultadoCombate(resultado)
 
-	// 5. Log de publicación - resultado
+	// Log de publicación - resultado
 	if err != nil {
 		log.Printf("[Error] Combate %s: Fallo al publicar en RabbitMQ: %v", combateID, err)
 		// A pesar del error, continuamos con la respuesta al cliente
@@ -347,7 +346,7 @@ func main() {
 		queues:        nil,
 	}
 
-	// PRIMERO iniciar el servidor gRPC
+	// iniciar el servidor gRPC
 	lis, err := net.Listen("tcp", ":50052")
 	if err != nil {
 		log.Fatalf("Fallo al escuchar: %v", err)
@@ -369,7 +368,7 @@ func main() {
 	log.Println("Esperando a que el servidor gRPC inicie completamente...")
 	time.Sleep(2 * time.Second)
 
-	// DESPUÉS intentar inicializar RabbitMQ
+	// intentar inicializar RabbitMQ
 	rabbitConn, rabbitChannel, queues, err := conectarRabbitMQ(10, 5*time.Second)
 	if err != nil {
 		log.Printf("Advertencia: No se pudo inicializar RabbitMQ: %v", err)
