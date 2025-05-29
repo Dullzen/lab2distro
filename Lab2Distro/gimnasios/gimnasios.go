@@ -339,25 +339,14 @@ func main() {
 	// Inicializar el generador de números aleatorios
 	rand.Seed(time.Now().UnixNano())
 
-	// Intentar inicializar RabbitMQ
-	rabbitConn, rabbitChannel, queues, err := conectarRabbitMQ(10, 5*time.Second)
-	if err != nil {
-		log.Printf("Advertencia: No se pudo inicializar RabbitMQ: %v", err)
-		log.Println("El servidor continuará funcionando sin RabbitMQ")
-	} else {
-		log.Println("Conexión a RabbitMQ establecida correctamente")
-		defer rabbitConn.Close()
-		defer rabbitChannel.Close()
-	}
-
 	// Crear el servidor
 	s := &server{
-		rabbitConn:    rabbitConn,
-		rabbitChannel: rabbitChannel,
-		queues:        queues,
+		rabbitConn:    nil,
+		rabbitChannel: nil,
+		queues:        nil,
 	}
 
-	// Iniciar el servidor gRPC
+	// PRIMERO iniciar el servidor gRPC
 	lis, err := net.Listen("tcp", ":50052")
 	if err != nil {
 		log.Fatalf("Fallo al escuchar: %v", err)
@@ -367,7 +356,34 @@ func main() {
 	pb.RegisterLCPServiceServer(grpcServer, s)
 
 	log.Println("Servidor de Gimnasios corriendo en puerto 50052")
-	if err := grpcServer.Serve(lis); err != nil {
-		log.Fatalf("Fallo al iniciar servidor: %v", err)
+
+	// Iniciar el servidor en una goroutine
+	go func() {
+		if err := grpcServer.Serve(lis); err != nil {
+			log.Fatalf("Fallo al iniciar servidor: %v", err)
+		}
+	}()
+
+	// Pequeña pausa para asegurar que el servidor está escuchando
+	log.Println("Esperando a que el servidor gRPC inicie completamente...")
+	time.Sleep(2 * time.Second)
+
+	// DESPUÉS intentar inicializar RabbitMQ
+	rabbitConn, rabbitChannel, queues, err := conectarRabbitMQ(10, 5*time.Second)
+	if err != nil {
+		log.Printf("Advertencia: No se pudo inicializar RabbitMQ: %v", err)
+		log.Println("El servidor continuará funcionando sin RabbitMQ")
+	} else {
+		log.Println("Conexión a RabbitMQ establecida correctamente")
+		defer rabbitConn.Close()
+		defer rabbitChannel.Close()
+
+		// Actualizar el servidor con las conexiones establecidas
+		s.rabbitConn = rabbitConn
+		s.rabbitChannel = rabbitChannel
+		s.queues = queues
 	}
+
+	// Bloquear el programa para que no termine
+	select {}
 }

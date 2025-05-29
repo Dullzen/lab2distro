@@ -260,8 +260,31 @@ func main() {
 		resultadosAdelantados: make(map[string]string),
 	}
 
+	// Iniciar el servidor gRPC PRIMERO
+	lis, err := net.Listen("tcp", ":50051")
+	if err != nil {
+		log.Fatalf("Fallo al escuchar: %v", err)
+	}
+
+	grpcServer := grpc.NewServer()
+	pb.RegisterLCPServiceServer(grpcServer, s)
+
+	// Iniciar el servidor en un goroutine para que no bloquee
+	go func() {
+		log.Println("LCP corriendo en puerto 50051")
+		if err := grpcServer.Serve(lis); err != nil {
+			log.Fatalf("Fallo al iniciar servidor: %v", err)
+		}
+	}()
+
+	// Pequeña pausa para asegurar que el servidor está escuchando
+	log.Println("Esperando a que el servidor gRPC inicie completamente...")
+	time.Sleep(2 * time.Second)
+
+	// DESPUÉS conectar a servicios externos
+
 	// Conectar a RabbitMQ para recibir resultados de combates
-	rabbitConn, err := conectarRabbitMQ("amqp://guest:guest@localhost:5672/", 5, time.Second*3) // Usando localhost porque RabbitMQ estará en la misma VM
+	rabbitConn, err := conectarRabbitMQ("amqp://guest:guest@localhost:5672/", 5, time.Second*3)
 	if err != nil {
 		log.Printf("Error conectando con RabbitMQ: %v", err)
 		log.Println("Se usarán ganadores aleatorios para los combates")
@@ -281,8 +304,8 @@ func main() {
 		defer rabbitConn.Close()
 	}
 
-	// Establecer conexión con gimnasios desde el inicio
-	gimnasiosConn, err := conectarGRPC("10.35.168.64:50052", 5, time.Second) // Cambiado a la IP de la primera VM
+	// Establecer conexión con gimnasios DESPUÉS de que nuestro servidor esté funcionando
+	gimnasiosConn, err := conectarGRPC("10.35.168.64:50052", 10, time.Second)
 	var gimnasiosClient pb.LCPServiceClient
 
 	if err != nil {
@@ -295,22 +318,6 @@ func main() {
 		defer gimnasiosConn.Close()
 	}
 
-	// Iniciar el servidor gRPC - NO REINICIALIZAR EL SERVIDOR AQUÍ
-	lis, err := net.Listen("tcp", ":50051")
-	if err != nil {
-		log.Fatalf("Fallo al escuchar: %v", err)
-	}
-
-	grpcServer := grpc.NewServer()
-	pb.RegisterLCPServiceServer(grpcServer, s)
-
-	// Iniciar el servidor en un goroutine para que no bloquee
-	go func() {
-		log.Println("LCP corriendo en puerto 50051")
-		if err := grpcServer.Serve(lis); err != nil {
-			log.Fatalf("Fallo al iniciar servidor: %v", err)
-		}
-	}()
 	// Pequeña pausa para que el mensaje del servidor no se mezcle con los logs del torneo
 	time.Sleep(1 * time.Second)
 	// Generar torneos periódicamente
