@@ -249,7 +249,7 @@ func main() {
 	log.Println("Iniciando Combat Data Processor (CDP)...")
 
 	// Conectar a LCP mediante gRPC (mantener para verificación de entrenadores)
-	connLCP, err := conectarGRPC("10.35.168.64:50051", 5, time.Second*3) // Cambiado a la IP de la segunda VM
+	connLCP, err := conectarGRPC("10.35.168.63:50051", 5, time.Second*3) // Cambiado a la IP de la segunda VM
 	if err != nil {
 		log.Printf("Error conectando con LCP: %v. Continuando sin verificar entrenadores.", err)
 	} else {
@@ -259,7 +259,7 @@ func main() {
 	}
 
 	// Conectar a RabbitMQ
-	conn, err := amqp.Dial("amqp://guest:guest@10.35.168.64:5672/") // Cambiado a la IP de la segunda VM
+	conn, err := amqp.Dial("amqp://guest:guest@10.35.168.63:5672/") // Cambiado a la IP de la segunda VM
 	if err != nil {
 		log.Fatalf("Error conectando a RabbitMQ: %v", err)
 	}

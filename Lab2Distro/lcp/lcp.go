@@ -282,7 +282,7 @@ func main() {
 	}
 
 	// Establecer conexión con gimnasios desde el inicio
-	gimnasiosConn, err := conectarGRPC("10.35.168.63:50052", 5, time.Second) // Cambiado a la IP de la primera VM
+	gimnasiosConn, err := conectarGRPC("10.35.168.64:50052", 5, time.Second) // Cambiado a la IP de la primera VM
 	var gimnasiosClient pb.LCPServiceClient
 
 	if err != nil {

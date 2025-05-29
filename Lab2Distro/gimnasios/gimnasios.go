@@ -124,7 +124,7 @@ func cifrarAES(textoPlano []byte) (string, error) {
 func conectarRabbitMQ(maxRetries int, retryDelay time.Duration) (*amqp.Connection, *amqp.Channel, map[string]amqp.Queue, error) {
 	var lastErr error
 	for i := 0; i < maxRetries; i++ {
-		conn, err := amqp.Dial("amqp://guest:guest@10.35.168.64:5672/") // Cambiado a la segunda VM donde estará RabbitMQ
+		conn, err := amqp.Dial("amqp://guest:guest@10.35.168.63:5672/") // Cambiado a la segunda VM donde estará RabbitMQ
 		if err == nil {
 			ch, err := conn.Channel()
 			if err == nil {
