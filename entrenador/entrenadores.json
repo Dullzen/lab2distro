@@ -1,0 +1,402 @@
+[
+    {
+        "id": "001",
+        "nombre": "John Flores",
+        "region": "Unova",
+        "ranking": 1378,
+        "estado": "Expulsado",
+        "suspension": 0
+    },
+    {
+        "id": "002",
+        "nombre": "Nancy Carroll",
+        "region": "Sinnoh",
+        "ranking": 1441,
+        "estado": "Suspendido",
+        "suspension": 1
+    },
+    {
+        "id": "003",
+        "nombre": "Gary Morgan",
+        "region": "Unova",
+        "ranking": 1897,
+        "estado": "Activo",
+        "suspension": 0
+    },
+    {
+        "id": "004",
+        "nombre": "Ricky Cruz",
+        "region": "Unova",
+        "ranking": 1985,
+        "estado": "Activo",
+        "suspension": 0
+    },
+    {
+        "id": "005",
+        "nombre": "Jeffrey Rodriguez",
+        "region": "Sinnoh",
+        "ranking": 1497,
+        "estado": "Activo",
+        "suspension": 0
+    },
+    {
+        "id": "006",
+        "nombre": "Monica Moore",
+        "region": "Sinnoh",
+        "ranking": 1258,
+        "estado": "Activo",
+        "suspension": 0
+    },
+    {
+        "id": "007",
+        "nombre": "Rebecca Clark",
+        "region": "Johto",
+        "ranking": 1520,
+        "estado": "Activo",
+        "suspension": 0
+    },
+    {
+        "id": "008",
+        "nombre": "Justin Lewis",
+        "region": "Johto",
+        "ranking": 1139,
+        "estado": "Suspendido",
+        "suspension": 2
+    },
+    {
+        "id": "009",
+        "nombre": "Brian Gordon",
+        "region": "Johto",
+        "ranking": 1703,
+        "estado": "Activo",
+        "suspension": 0
+    },
+    {
+        "id": "010",
+        "nombre": "Corey Gilmore",
+        "region": "Kanto",
+        "ranking": 1116,
+        "estado": "Activo",
+        "suspension": 0
+    },
+    {
+        "id": "011",
+        "nombre": "Christopher Ortiz",
+        "region": "Kanto",
+        "ranking": 1827,
+        "estado": "Activo",
+        "suspension": 0
+    },
+    {
+        "id": "012",
+        "nombre": "Jacqueline Reyes",
+        "region": "Hoenn",
+        "ranking": 1118,
+        "estado": "Activo",
+        "suspension": 0
+    },
+    {
+        "id": "013",
+        "nombre": "Erica Powell",
+        "region": "Kanto",
+        "ranking": 1901,
+        "estado": "Activo",
+        "suspension": 0
+    },
+    {
+        "id": "014",
+        "nombre": "Ashley Price",
+        "region": "Hoenn",
+        "ranking": 1009,
+        "estado": "Suspendido",
+        "suspension": 5
+    },
+    {
+        "id": "015",
+        "nombre": "Emily Mcdonald",
+        "region": "Johto",
+        "ranking": 1074,
+        "estado": "Activo",
+        "suspension": 0
+    },
+    {
+        "id": "016",
+        "nombre": "Susan Padilla",
+        "region": "Johto",
+        "ranking": 1736,
+        "estado": "Activo",
+        "suspension": 0
+    },
+    {
+        "id": "017",
+        "nombre": "Elizabeth Patel",
+        "region": "Sinnoh",
+        "ranking": 1803,
+        "estado": "Suspendido",
+        "suspension": 2
+    },
+    {
+        "id": "018",
+        "nombre": "Stephanie Flores",
+        "region": "Johto",
+        "ranking": 1489,
+        "estado": "Suspendido",
+        "suspension": 4
+    },
+    {
+        "id": "019",
+        "nombre": "Noah Williams",
+        "region": "Johto",
+        "ranking": 1416,
+        "estado": "Activo",
+        "suspension": 0
+    },
+    {
+        "id": "020",
+        "nombre": "Megan Hernandez",
+        "region": "Johto",
+        "ranking": 1345,
+        "estado": "Activo",
+        "suspension": 0
+    },
+    {
+        "id": "021",
+        "nombre": "Dr. John Sullivan",
+        "region": "Kanto",
+        "ranking": 1702,
+        "estado": "Activo",
+        "suspension": 0
+    },
+    {
+        "id": "022",
+        "nombre": "Lori Roth",
+        "region": "Kanto",
+        "ranking": 1002,
+        "estado": "Expulsado",
+        "suspension": 0
+    },
+    {
+        "id": "023",
+        "nombre": "Alexandra Moore",
+        "region": "Unova",
+        "ranking": 1849,
+        "estado": "Activo",
+        "suspension": 0
+    },
+    {
+        "id": "024",
+        "nombre": "Mr. Johnathan Sanchez DDS",
+        "region": "Hoenn",
+        "ranking": 1845,
+        "estado": "Suspendido",
+        "suspension": 3
+    },
+    {
+        "id": "025",
+        "nombre": "Rachael Galvan",
+        "region": "Hoenn",
+        "ranking": 1152,
+        "estado": "Suspendido",
+        "suspension": 5
+    },
+    {
+        "id": "026",
+        "nombre": "Michael Brown",
+        "region": "Kanto",
+        "ranking": 1754,
+        "estado": "Activo",
+        "suspension": 0
+    },
+    {
+        "id": "027",
+        "nombre": "Taylor Miller",
+        "region": "Hoenn",
+        "ranking": 1233,
+        "estado": "Activo",
+        "suspension": 0
+    },
+    {
+        "id": "028",
+        "nombre": "Jennifer Ortiz",
+        "region": "Hoenn",
+        "ranking": 1511,
+        "estado": "Expulsado",
+        "suspension": 0
+    },
+    {
+        "id": "029",
+        "nombre": "Tracy Smith",
+        "region": "Hoenn",
+        "ranking": 1585,
+        "estado": "Suspendido",
+        "suspension": 2
+    },
+    {
+        "id": "030",
+        "nombre": "Scott Thomas",
+        "region": "Unova",
+        "ranking": 1831,
+        "estado": "Activo",
+        "suspension": 0
+    },
+    {
+        "id": "031",
+        "nombre": "Megan Gonzalez",
+        "region": "Hoenn",
+        "ranking": 1515,
+        "estado": "Activo",
+        "suspension": 0
+    },
+    {
+        "id": "032",
+        "nombre": "Allison Marsh",
+        "region": "Hoenn",
+        "ranking": 1744,
+        "estado": "Activo",
+        "suspension": 0
+    },
+    {
+        "id": "033",
+        "nombre": "Charles Taylor",
+        "region": "Unova",
+        "ranking": 1087,
+        "estado": "Activo",
+        "suspension": 0
+    },
+    {
+        "id": "034",
+        "nombre": "Ross Richards",
+        "region": "Johto",
+        "ranking": 1561,
+        "estado": "Activo",
+        "suspension": 0
+    },
+    {
+        "id": "035",
+        "nombre": "Mr. Kenneth Rogers II",
+        "region": "Sinnoh",
+        "ranking": 1291,
+        "estado": "Activo",
+        "suspension": 0
+    },
+    {
+        "id": "036",
+        "nombre": "Samantha Adams",
+        "region": "Johto",
+        "ranking": 1874,
+        "estado": "Suspendido",
+        "suspension": 3
+    },
+    {
+        "id": "037",
+        "nombre": "Joshua Castillo",
+        "region": "Johto",
+        "ranking": 1657,
+        "estado": "Activo",
+        "suspension": 0
+    },
+    {
+        "id": "038",
+        "nombre": "Ryan Watson",
+        "region": "Hoenn",
+        "ranking": 1838,
+        "estado": "Suspendido",
+        "suspension": 2
+    },
+    {
+        "id": "039",
+        "nombre": "Amanda Massey",
+        "region": "Sinnoh",
+        "ranking": 1417,
+        "estado": "Expulsado",
+        "suspension": 0
+    },
+    {
+        "id": "040",
+        "nombre": "Diana Williams",
+        "region": "Sinnoh",
+        "ranking": 1216,
+        "estado": "Activo",
+        "suspension": 0
+    },
+    {
+        "id": "041",
+        "nombre": "Regina Espinoza",
+        "region": "Kanto",
+        "ranking": 1181,
+        "estado": "Activo",
+        "suspension": 0
+    },
+    {
+        "id": "042",
+        "nombre": "Brandon Robinson",
+        "region": "Sinnoh",
+        "ranking": 1151,
+        "estado": "Suspendido",
+        "suspension": 1
+    },
+    {
+        "id": "043",
+        "nombre": "Stephanie Rhodes",
+        "region": "Johto",
+        "ranking": 1649,
+        "estado": "Expulsado",
+        "suspension": 0
+    },
+    {
+        "id": "044",
+        "nombre": "Kyle Thompson",
+        "region": "Unova",
+        "ranking": 1592,
+        "estado": "Expulsado",
+        "suspension": 0
+    },
+    {
+        "id": "045",
+        "nombre": "Beverly Freeman",
+        "region": "Johto",
+        "ranking": 1264,
+        "estado": "Activo",
+        "suspension": 0
+    },
+    {
+        "id": "046",
+        "nombre": "Jordan Morgan",
+        "region": "Johto",
+        "ranking": 1667,
+        "estado": "Activo",
+        "suspension": 0
+    },
+    {
+        "id": "047",
+        "nombre": "David Ryan",
+        "region": "Unova",
+        "ranking": 1463,
+        "estado": "Activo",
+        "suspension": 0
+    },
+    {
+        "id": "048",
+        "nombre": "Todd Gross",
+        "region": "Unova",
+        "ranking": 1577,
+        "estado": "Expulsado",
+        "suspension": 0
+    },
+    {
+        "id": "049",
+        "nombre": "Darryl Smith",
+        "region": "Sinnoh",
+        "ranking": 1578,
+        "estado": "Activo",
+        "suspension": 0
+    },
+    {
+        "id": "050",
+        "nombre": "Lindsay Murray",
+        "region": "Unova",
+        "ranking": 1695,
+        "estado": "Activo",
+        "suspension": 0
+    }
+]
